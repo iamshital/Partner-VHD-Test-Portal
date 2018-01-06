@@ -1,6 +1,6 @@
 ﻿Function LogText ($text)
 {
-        Write-Host "$(Get-Date -Format "yyyy-mm-dd hh:ss:tt") : INFO : $text"
+        Write-Host "$(Get-Date -Format "yyyy-mm-dd hh:mm:ss tt") : INFO : $text"
 }
 
 Function ValidateVHD($vhdPath)
