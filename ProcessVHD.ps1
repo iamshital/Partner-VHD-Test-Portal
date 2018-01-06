@@ -12,6 +12,7 @@ try
     $userFile = $userFile.Replace('.xz','')
     $exitValue = 1
     $QueueDir = "E:\QueueVHDs"
+    $shortRandomWord = -join ((65..90) | Get-Random -Count 6 | % {[char]$_})
 
     #Convert VHDx files to VHD.
     if ( $userFile.EndsWith("x") -or  $userFile.EndsWith("X") )
@@ -49,29 +50,28 @@ try
         $vhdInfo = Get-VHD -Path "$QueueDir\$userFile"
         if ( $vhdInfo.VhdType -imatch "Fixed" )
         {
-            $ticks = (Get-Date).Ticks
             LogText -text "Converting FIXED '$userFile' to Dynamic. This will reduce the upload time."
-            $convertJob = Start-Job -ScriptBlock { Convert-VHD -Path $args[0] -DestinationPath $args[1] -VHDType Dynamic } -ArgumentList "$QueueDir\$userFile", "$QueueDir\$ticks-$userFile"
+            $convertJob = Start-Job -ScriptBlock { Convert-VHD -Path $args[0] -DestinationPath $args[1] -VHDType Dynamic } -ArgumentList "$QueueDir\$userFile", "$QueueDir\$shortRandomWord-$userFile"
             while ($convertJob.State -eq "Running")
             {
-                LogText -text "'$userFile' [fixed] --> '$ticks-$userFile' [dynamic] is running"
+                LogText -text "'$userFile' [fixed] --> '$shortRandomWord-$userFile' [dynamic] is running"
                 Sleep -Seconds 5
             }
         
             if ( $convertJob.State -eq "Completed")
             {
-                LogText -text "'$userFile' [fixed] --> '$ticks-$userFile' [dynamic] is Succeeded"
+                LogText -text "'$userFile' [fixed] --> '$shortRandomWord-$userFile' [dynamic] is Succeeded"
                 
                 $exitValue = 0
                 LogText -text "Removing Fixed disk '$userFile'"
                 Remove-Item -Path "$QueueDir\$userFile" -Force
-                LogText -text "Renaming Dynamic disk '$ticks-$userFile' to '$userFile'"
-                Rename-Item -Path "$QueueDir\$ticks-$userFile" -NewName "$userFile" 
+                LogText -text "Renaming Dynamic disk '$shortRandomWord-$userFile' to '$userFile'"
+                Rename-Item -Path "$QueueDir\$shortRandomWord-$userFile" -NewName "$userFile" 
                 $finalVHD = "$QueueDir\$userFile"
             }
             else
             {
-                LogText -text "'$userFile' [fixed] --> '$ticks-$userFile' [dynamic] is Failed"
+                LogText -text "'$userFile' [fixed] --> '$shortRandomWord-$userFile' [dynamic] is Failed"
                 $exitValue = 1
             }        
         }
