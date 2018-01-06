@@ -39,6 +39,8 @@ try
     {
         LogText -text "Copying $sharedDrive\ReceivedFiles\$VHD --> $localDrive\ReceivedFiles."
         Copy-Item -Path "$sharedDrive\ReceivedFiles\$VHD" -Destination $ReceivedFilesDir -Force
+        $PartnerName = $VHD.Split("-")[0]
+        $BuildNumber = $VHD.Split("-")[1]        
     }
     else 
     {
@@ -98,18 +100,18 @@ try
         {
             LogText -text "Detected *.xz file."
             LogText -text "Extracting '$VHD'. Please wait..."
-            $vhdPath = $VHD
-            $7zConsoleOuput = Invoke-Expression -Command "$7zExePath -y x '$vhdPath';" -Verbose
+            $7zConsoleOuput = Invoke-Expression -Command "$7zExePath -y x '$VHD';" -Verbose
             if ($7zConsoleOuput -imatch "Everything is Ok")
             {
                 LogText -text "Extraction completed."
-                LogText -text "Changing working directory to $currentDir"                
+                $newVHDName = $(($VHD).TrimEnd("xz").TrimEnd("."))
+                #Rename-Item -Path $newVHDName.Replace("$PartnerName-","").Replace("$BuildNumber-","") -NewName $newVHDName
+                LogText -text "Changing working directory to $currentDir"
+                cd $currentDir
                 $vhdActualSize = ($7zConsoleOuput -imatch "size").Replace(" ",'').Replace(" ",'').Replace(" ",'').Replace(" ",'').Split(":")[1]
                 $vhdCompressedSize = ($7zConsoleOuput -imatch "Compressed").Replace(" ",'').Replace(" ",'').Replace(" ",'').Replace(" ",'').Split(":")[1]
                 $compressinRatio = ((($vhdCompressedSize/($vhdActualSize-$vhdCompressedSize))*100))
-                LogText -text "Compression Ratio : $compressinRatio%"
-                $newVHDName = ($VHD).TrimEnd("xz").TrimEnd(".")
-                cd $currentDir                 
+                LogText -text "Compression Ratio : $compressinRatio %"
             }
             else
             {
