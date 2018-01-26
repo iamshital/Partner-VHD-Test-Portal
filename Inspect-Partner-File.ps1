@@ -8,7 +8,9 @@ $sharedDrive = "Z:"
 $localDrive = "E:"
 $7zExePath = "$pwd\tools\7za.exe"
 $VHD = $userFile
-$Email = $env:Email   
+$Email = $env:Email
+$PartnerName = $env:PartnerName
+$BuildNumber = $env:BuildNumber
 try
 {
     #Prerequisites:
@@ -17,13 +19,13 @@ try
     mkdir -Path $localDrive\QueueVHDs  -ErrorAction SilentlyContinue | Out-Null
     mkdir -Path $sharedDrive\ReceivedFiles -ErrorAction SilentlyContinue | Out-Null
     mkdir -Path $sharedDrive\QueueVHDs  -ErrorAction SilentlyContinue | Out-Null
-    
+
 
     if (!( Test-Path -Path $7zExePath ))
     {
         Write-Host "Downloading 7za.exe"
         $out = Invoke-WebRequest -UseBasicParsing -Uri "https://github.com/iamshital/azure-linux-automation-support-files/raw/master/tools/7za.exe" -OutFile 7za.exe -ErrorAction SilentlyContinue | Out-Null
-    }    
+    }
 
     Move-Item -Path "*.exe" -Destination .\tools -ErrorAction SilentlyContinue -Force
 
@@ -34,20 +36,37 @@ try
     $QueueDir = "$localDrive\QueueVHDs"
     $ReceivedFilesDir = "$localDrive\ReceivedFiles"
 
-    LogText -text "Checking if $sharedDrive\ReceivedFiles\$VHD exists."    
+    LogText -text "Checking if $sharedDrive\ReceivedFiles\$VHD exists."
     If((Test-Path "$sharedDrive\ReceivedFiles\$VHD" -ErrorAction SilentlyContinue))
     {
         LogText -text "Copying $sharedDrive\ReceivedFiles\$VHD --> $localDrive\ReceivedFiles."
         Copy-Item -Path "$sharedDrive\ReceivedFiles\$VHD" -Destination $ReceivedFilesDir -Force
-        $PartnerName = $VHD.Split("-")[0]
-        $BuildNumber = $VHD.Split("-")[1]        
     }
-    else 
+    else
     {
         LogText -text "$sharedDrive\ReceivedFiles\$VHD not found."
         $missingParameters += "FileName"
     }
-    #LogText -text "Checking if -Email is provided."    
+    if ($env:customKernel)
+    {
+        $customKernelName = (Get-ChildItem -Path "$sharedDrive\ReceivedFiles" | Where-Object { $_.Name -imatch "$PartnerName-$BuildNumber-testKernel"}).Name
+        LogText -text "Checking if $sharedDrive\ReceivedFiles\$customKernelName exists."
+        If((Test-Path "$sharedDrive\ReceivedFiles\$customKernelName" -ErrorAction SilentlyContinue))
+        {
+            LogText -text "Copying $sharedDrive\ReceivedFiles\$customKernelName to current working directory."
+            Copy-Item -Path "$sharedDrive\ReceivedFiles\$customKernelName" -Destination . -Force
+            Set-Content -Path testKernelPSCmd.temp.txt -Value " -customKernel 'localfile:$customKernelName'" -NoNewline
+        }
+        $customKernelName = "$PartnerName-$BuildNumber-testKernel.rpm"
+        LogText -text "Checking if $sharedDrive\ReceivedFiles\$customKernelName exists."
+        If((Test-Path "$sharedDrive\ReceivedFiles\$customKernelName" -ErrorAction SilentlyContinue))
+        {
+            LogText -text "Copying $sharedDrive\ReceivedFiles\$customKernelName to current working directory."
+            Copy-Item -Path "$sharedDrive\ReceivedFiles\$customKernelName" -Destination . -Force
+            Set-Content -Path testKernelPSCmd.temp.txt -Value " -customKernel 'localfile:$customKernelName'" -NoNewline
+        }
+    }
+    #LogText -text "Checking if -Email is provided."
     #If($Email -eq $null)
     #{
     #    LogText -text "$Email not provided."
@@ -57,25 +76,25 @@ try
     if ($missingParameters.Count -gt 0 )
     {
         $j = 1
-        
+
         LogText -text "Following parameters are missing - "
         foreach($parameter in $missingParameters)
         {
-            LogText -text "`t$j`t$parameter" 
-            $j += 1  
+            LogText -text "`t$j`t$parameter"
+            $j += 1
         }
         Throw "MISSING_PARAMETERS_EXCEPTION"
     }
     #endregion
 
-    
+
     #region DEFINE VARIABLES
     $exitValue = 1
-    $currentDir = $pwd 
+    $currentDir = $pwd
     #endregion
 
-    LogText -text "User Provided file = $VHD" 
-    LogText -text "Email = $Email"     
+    LogText -text "User Provided file = $VHD"
+    LogText -text "Email = $Email"
 
 
 
@@ -83,7 +102,7 @@ try
     if ($VHD)
     {
         LogText -text "Using user provided file '$VHD' ..."
-        
+
         if ( $md5sum)
         {
             LogText -text "Checking file integrity."
@@ -134,7 +153,7 @@ try
         Move-Item -Path "$ReceivedFilesDir\$newVHDName" -Destination $QueueDir -Force
         if ($? )
         {
-            $exitValue = 0    
+            $exitValue = 0
         }
         else
         {
