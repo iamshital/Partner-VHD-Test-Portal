@@ -4,11 +4,11 @@ $exitCode = 0
 
 $env:PartnerName
 $env:BUILD_NUMBER
-if ($env:VHD -eq $null)
+if ($env:AzureImage -eq $null -and $env:VHD -eq $null)
 {
-    LogText -text "--------------------------------------"
-    LogText -text "You did not upload VHD file. Aborting."
-    LogText -text "--------------------------------------"
+    LogText -text "---------------------------------------------------------------------"
+    LogText -text "Error: Please upload a VHD file or choose AzureImage from the list."
+    LogText -text "---------------------------------------------------------------------"
     $exitCode += 1
     exit $exitCode
 }
@@ -76,25 +76,38 @@ if ($env:TestKernelRemoteURL)
         }
     }
 }
-LogText -text "VHD: $env:VHD"
-$tempVHD = ($env:VHD).ToLower()
-if ( $tempVHD.EndsWith(".vhd") -or $tempVHD.EndsWith(".vhdx") -or $tempVHD.EndsWith(".xz"))
+if ($testKernel)
 {
-    LogText -text "Copying your file --> Z:\ReceivedFiles\$env:PartnerName-$env:BUILD_NUMBER-$env:VHD"
-    Move-Item VHD Z:\ReceivedFiles\$env:PartnerName-$env:BUILD_NUMBER-$env:VHD -Force
-    if ($testKernel)
-    {
-        LogText -text "Copying $testKernel --> Z:\ReceivedFiles\$testKernel"
-        Move-Item $testKernel Z:\ReceivedFiles\$testKernel -Force
-    }
-    $exitCode = 0
+    $out = Invoke-WebRequest -UseBasicParsing -Uri "https://github.com/iamshital/azure-linux-automation/raw/master/AddAzureRmAccountFromSecretsFile.ps1" -OutFile AddAzureRmAccountFromSecretsFile.ps1 -ErrorAction SilentlyContinue | Out-Null
+    $out = Invoke-WebRequest -UseBasicParsing -Uri "https://github.com/iamshital/azure-linux-automation/raw/master/Extras/UploadFilesToStorageAccount.ps1" -OutFile UploadFilesToStorageAccount.ps1 -ErrorAction SilentlyContinue | Out-Null
+    .\UploadFilesToStorageAccount.ps1 -filePaths $testKernel -destinationStorageAccount konkasoftpackages -destinationContainer partner -destinationFolder Partner $env:PartnerName
 }
-else
+if ($env:VHD)
 {
-    LogText -text "-----------------ERROR-------------------"
-    LogText -text "Error: Filetype : $($tempVHD.Split(".")[$tempVHD.Split(".").Count -1]) is NOT supported."
-    LogText -text "Supported file types : vhd, vhdx, xz."
-    LogText -text "-----------------------------------------"
-    $exitCode = 1
+    LogText -text "VHD: $env:VHD"
+    $tempVHD = ($env:VHD).ToLower()
+    if ( $tempVHD.EndsWith(".vhd") -or $tempVHD.EndsWith(".vhdx") -or $tempVHD.EndsWith(".xz"))
+    {
+        LogText -text "Copying your file --> Z:\ReceivedFiles\$env:PartnerName-$env:BUILD_NUMBER-$env:VHD"
+        Move-Item VHD Z:\ReceivedFiles\$env:PartnerName-$env:BUILD_NUMBER-$env:VHD -Force
+        if ($testKernel)
+        {
+            LogText -text "Copying $testKernel --> Z:\ReceivedFiles\$testKernel"
+            Move-Item $testKernel Z:\ReceivedFiles\$testKernel -Force
+        }
+        $exitCode = 0
+    }
+    else
+    {
+        LogText -text "-----------------ERROR-------------------"
+        LogText -text "Error: Filetype : $($tempVHD.Split(".")[$tempVHD.Split(".").Count -1]) is NOT supported."
+        LogText -text "Supported file types : vhd, vhdx, xz."
+        LogText -text "-----------------------------------------"
+        $exitCode = 1
+    }
+}
+if ($env:AzureImage)
+{
+    LogText -text "AzureImage: $env:AzureImage"
 }
 exit $exitCode
